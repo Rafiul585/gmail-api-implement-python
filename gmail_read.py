@@ -90,6 +90,8 @@ def main():
                 mssg_body = soup.body()
                 temp_dict['Message_body'] = mssg_body
 
+                print(temp_dict)
+
 
             except Exception as e:
                 print('except', e)
