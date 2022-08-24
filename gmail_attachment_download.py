@@ -1,43 +1,29 @@
-# Copyright 2018 Google LLC
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-# [START gmail_quickstart]
+# [Gmail Attachment Download]
 from __future__ import print_function
-
 import os.path
 import base64
-from bs4 import BeautifulSoup
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-# If modifying these scopes, delete the file token.json.
+# Creating a token.json file with authentication details
 SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
 
 
 def main():
-    """Shows basic usage of the Gmail API.
-    Lists the user's Gmail labels.
-    """
+
+    # Variable creds will store the user access token.
+    # If no valid token found, we will create one.
     creds = None
+
     # The file token.json stores the user's access and refresh tokens, and is
-    # created automatically when the authorization flow completes for the first
-    # time.
+    # created automatically when the authorization flow completes for the first time.
+    # Check if it exists
     if os.path.exists('token.json'):
         creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+
     # If there are no (valid) credentials available, let the user log in.
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
@@ -50,38 +36,52 @@ def main():
         with open('token.json', 'w') as token:
             token.write(creds.to_json())
 
+    # Use try-except to avoid any Errors
     try:
         # Call the Gmail API
         service = build('gmail', 'v1', credentials=creds)
-        results = service.users().messages().list(userId='me').execute()
+
+        # request a list of all the messages
+        # results = service.users().messages().list(userId='me').execute()
+
+        # Pass maxResults to get any number of emails. Like this:
+        # results = service.users().messages().list(maxResults=2, userId='me').execute()
+
+        # Getting all the unread messages from Inbox
+        # labelIds can be changed accordingly
+        results = service.users().messages().list(maxResults=2, userId='me', labelIds=['INBOX', 'UNREAD']).execute()
+
         messages  = results.get('messages')
 
+        # messages is a list of dictionaries where each dictionary contains a message id.
+
+        # iterate through all the messages
         for msg in messages:
-        # Get the message from its id
+            # Get the message from its id
             txt = service.users().messages().get(userId='me', id=msg['id']).execute()
 
             for part in txt['payload']['parts']:
-                print(part)
 
                 if part['filename']:
-                    if 'data' in part['body']:
-                        data = part['body']['data']
-                    else:
-                        att_id = part['body']['attachmentId']
-                        att = service.users().messages().attachments().get(userId='me', messageId=msg['id'],id=att_id).execute()
-                        data = att['data']
+
+                    att_id = part['body']['attachmentId']
+                    att = service.users().messages().attachments().get(userId='me', messageId=msg['id'], id=att_id).execute()
+                    data = att['data']
+
+                    # decoding from Base64 to UTF-8
                     file_data = base64.urlsafe_b64decode(data.encode('UTF-8'))
                     path = part['filename']
 
+                    # write attachment to csv file
                     with open(path, 'wb') as f:
                         f.write(file_data)
 
 
     except HttpError as error:
-        # TODO(developer) - Handle errors from gmail API.
+        # Handle errors from gmail API.
         print(f'An error occurred: {error}')
 
 
 if __name__ == '__main__':
     main()
-# [END gmail_quickstart]
+# [END Gmail Attachment Download]
